@@ -79,3 +79,8 @@
 - name: Install C2 clients
   ansible.builtin.include_tasks: c2_clients.yml
   when: ludus_maldev_install_c2_clients | bool
+
+# ─── 14. WSL + Ubuntu + Java (CS team server prereqs) ────────────────────────
+- name: Install WSL with Ubuntu 22.04 and Java
+  ansible.builtin.include_tasks: wsl.yml
+  when: ludus_maldev_install_wsl | bool

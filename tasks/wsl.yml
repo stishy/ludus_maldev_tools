@@ -1,0 +1,125 @@
+---
+# ─── WSL + Ubuntu 22.04 + Java 11 ────────────────────────────────────────────
+# Sets up WSL (version 1, no kernel update required) with Ubuntu 22.04 and
+# OpenJDK 11. This provides the prerequisite environment for the Cobalt Strike
+# team server — CS itself must be installed manually by the user.
+
+# ─── 1. Enable the WSL Windows feature ───────────────────────────────────────
+- name: Enable Microsoft-Windows-Subsystem-Linux feature
+  ansible.windows.win_optional_feature:
+    name: Microsoft-Windows-Subsystem-Linux
+    state: present
+  register: wsl_feature
+
+- name: Reboot if WSL feature was just enabled
+  ansible.windows.win_reboot:
+    reboot_timeout: 300
+    post_reboot_delay: 15
+  when: wsl_feature.changed
+
+# ─── 2. Download VCLibs dependency ───────────────────────────────────────────
+- name: Check if VCLibs appx is already installed
+  ansible.windows.win_shell: |
+    $pkg = Get-AppxPackage -Name "Microsoft.VCLibs.140.00.UWPDesktop" -ErrorAction SilentlyContinue
+    if ($pkg) { "installed" } else { "missing" }
+  register: vclibs_check
+  changed_when: false
+
+- name: Download VCLibs 14.00 Desktop appx
+  ansible.windows.win_get_url:
+    url: "https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx"
+    dest: "{{ ludus_maldev_tmp_dir }}\\VCLibs.appx"
+    timeout: 120
+  when: vclibs_check.stdout | trim == "missing"
+
+- name: Install VCLibs appx
+  ansible.windows.win_shell: |
+    Add-AppxPackage "{{ ludus_maldev_tmp_dir }}\\VCLibs.appx"
+  when: vclibs_check.stdout | trim == "missing"
+
+# ─── 3. Download and install Ubuntu 22.04 appx ───────────────────────────────
+- name: Check if Ubuntu WSL distro appx is already installed
+  ansible.windows.win_shell: |
+    $pkg = Get-AppxPackage -Name "CanonicalGroupLimited.Ubuntu" -ErrorAction SilentlyContinue
+    if ($pkg) { "installed" } else { "missing" }
+  register: ubuntu_pkg_check
+  changed_when: false
+
+- name: Download Ubuntu 22.04 appx
+  ansible.windows.win_get_url:
+    url: "https://aka.ms/wslubuntu2204"
+    dest: "{{ ludus_maldev_tmp_dir }}\\Ubuntu2204.appx"
+    timeout: 300
+  when: ubuntu_pkg_check.stdout | trim == "missing"
+
+- name: Install Ubuntu 22.04 appx
+  ansible.windows.win_shell: |
+    Add-AppxPackage "{{ ludus_maldev_tmp_dir }}\\Ubuntu2204.appx"
+  when: ubuntu_pkg_check.stdout | trim == "missing"
+
+# ─── 4. Initialize the Ubuntu distro (non-interactive, root user) ─────────────
+- name: Find Ubuntu launcher exe path
+  ansible.windows.win_shell: |
+    $pkg = Get-AppxPackage -Name "CanonicalGroupLimited.Ubuntu" -ErrorAction SilentlyContinue
+    if ($pkg) { Join-Path $pkg.InstallLocation "ubuntu.exe" } else { "" }
+  register: ubuntu_exe_path
+  changed_when: false
+
+- name: Check if Ubuntu WSL distro is already initialized
+  ansible.windows.win_shell: |
+    $distros = wsl.exe -l -q 2>&1
+    if ($distros -match "Ubuntu") { "initialized" } else { "not_initialized" }
+  register: ubuntu_init_check
+  changed_when: false
+
+- name: Initialize Ubuntu distro (non-interactive root install)
+  ansible.windows.win_shell: |
+    & "{{ ubuntu_exe_path.stdout | trim }}" install --root
+  when:
+    - ubuntu_exe_path.stdout | trim | length > 0
+    - ubuntu_init_check.stdout | trim == "not_initialized"
+  register: ubuntu_init
+  failed_when: ubuntu_init.rc != 0
+
+# ─── 5. Install Java inside the Ubuntu distro ─────────────────────────────────
+- name: Check if Java is already installed in WSL
+  ansible.windows.win_shell: |
+    $result = wsl.exe -d Ubuntu -- bash -c "java -version 2>&1"
+    if ($LASTEXITCODE -eq 0) { "installed" } else { "missing" }
+  register: java_check
+  changed_when: false
+  ignore_errors: true
+
+- name: Update apt cache in WSL Ubuntu
+  ansible.windows.win_shell: |
+    wsl.exe -d Ubuntu -- bash -c "apt-get update -qq"
+  when: java_check.stdout | trim == "missing"
+
+- name: Install OpenJDK 11 in WSL Ubuntu
+  ansible.windows.win_shell: |
+    wsl.exe -d Ubuntu -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y default-jdk"
+  when: java_check.stdout | trim == "missing"
+  register: java_install
+  failed_when: java_install.rc != 0
+
+- name: Verify Java installation in WSL
+  ansible.windows.win_shell: |
+    wsl.exe -d Ubuntu -- bash -c "java -version 2>&1"
+  register: java_version
+  changed_when: false
+
+- name: Display Java version in WSL
+  ansible.builtin.debug:
+    msg: "WSL Java: {{ java_version.stdout | default(java_version.stderr) | trim }}"
+
+# ─── 6. Print post-install instructions ──────────────────────────────────────
+- name: WSL setup complete — post-install instructions
+  ansible.builtin.debug:
+    msg:
+      - "WSL + Ubuntu 22.04 + Java are ready."
+      - "To install Cobalt Strike team server:"
+      - "  1. Obtain a licensed copy of Cobalt Strike from HelpSystems/Fortra."
+      - "  2. Copy the tarball into WSL: cp /mnt/c/path/to/cobaltstrike.tgz ~"
+      - "  3. Extract: tar xzf ~/cobaltstrike.tgz -C ~"
+      - "  4. Start the team server: cd ~/cobaltstrike && ./teamserver <IP> <PASSWORD>"
+      - "  5. Connect with the CS client from Windows at 127.0.0.1:50050"

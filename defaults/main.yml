@@ -35,6 +35,11 @@ ludus_maldev_create_shortcuts: true
 # C2 clients: Sliver only (Havoc is Linux-only — install on Kali)
 ludus_maldev_install_c2_clients: true
 
+# WSL with Ubuntu 22.04 + Java 11 (prerequisite for Cobalt Strike team server)
+# NOTE: Cobalt Strike must be installed manually by the user due to licensing.
+# Once this runs, place your CS files in the WSL distro and launch the team server.
+ludus_maldev_install_wsl: false
+
 # ─── Paths ─────────────────────────────────────────────────────────────────
 # Root directory for all tools and cloned repos
 ludus_maldev_tools_dir: "C:\\Tools"

@@ -20,6 +20,20 @@ An Ansible Role that transforms a Windows VM into a fully equipped **malware dev
 > [!WARNING]
 > This role intentionally disables Windows security controls (Defender, AMSI, Firewall). Only use in isolated lab/range environments.
 
+## Installation
+
+### Via Ludus (recommended)
+
+```bash
+ludus ansible roles add stishy.ludus_maldev_tools
+```
+
+### Via Ansible Galaxy
+
+```bash
+ansible-galaxy role install stishy.ludus_maldev_tools
+```
+
 ## Requirements
 
 None.

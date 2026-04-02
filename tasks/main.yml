@@ -1,0 +1,81 @@
+---
+# ─── Ensure C:\Tools directory exists (required by multiple categories) ───────
+- name: Ensure C:\Tools base directory exists
+  ansible.windows.win_file:
+    path: "{{ ludus_maldev_tools_dir }}"
+    state: directory
+
+- name: Ensure temp download directory exists
+  ansible.windows.win_file:
+    path: "{{ ludus_maldev_tmp_dir }}"
+    state: directory
+
+# ─── 1. Security Disable (MUST BE FIRST) ─────────────────────────────────────
+- name: Disable Windows security controls
+  ansible.builtin.include_tasks: security_disable.yml
+  when: ludus_maldev_security_disable | bool
+
+# ─── 2. Bootstrap Chocolatey ─────────────────────────────────────────────────
+- name: Bootstrap Chocolatey
+  ansible.builtin.include_tasks: chocolatey_bootstrap.yml
+
+# ─── 3. Core Utilities ───────────────────────────────────────────────────────
+- name: Install core utilities
+  ansible.builtin.include_tasks: utilities.yml
+  when: ludus_maldev_install_utilities | bool
+
+# ─── 4. Languages ────────────────────────────────────────────────────────────
+- name: Install programming languages
+  ansible.builtin.include_tasks: languages.yml
+  when: ludus_maldev_install_languages | bool
+
+# ─── 5. Compilers & Build Tools ──────────────────────────────────────────────
+- name: Install compilers and build tools
+  ansible.builtin.include_tasks: compilers.yml
+  when: ludus_maldev_install_compilers | bool
+
+# ─── 6. IDEs ─────────────────────────────────────────────────────────────────
+- name: Install IDEs
+  ansible.builtin.include_tasks: ides.yml
+  when: ludus_maldev_install_ides | bool
+
+# ─── 7. VS Code Extensions ───────────────────────────────────────────────────
+- name: Install VS Code extensions
+  ansible.builtin.include_tasks: vscode_extensions.yml
+  when:
+    - ludus_maldev_install_vscode_extensions | bool
+    - ludus_maldev_install_ides | bool
+
+# ─── 8. RE / Analysis Tools ──────────────────────────────────────────────────
+- name: Install RE and analysis tools
+  ansible.builtin.include_tasks: re_tools.yml
+  when: ludus_maldev_install_re_tools | bool
+
+# ─── 9. Networking Tools ─────────────────────────────────────────────────────
+- name: Install networking tools
+  ansible.builtin.include_tasks: networking.yml
+  when: ludus_maldev_install_networking | bool
+
+# ─── 10. Offensive GitHub Repos ──────────────────────────────────────────────
+- name: Clone offensive GitHub repositories
+  ansible.builtin.include_tasks: offensive_repos.yml
+  when: ludus_maldev_install_offensive_repos | bool
+
+# ─── 10b. Build Cloned Repos ─────────────────────────────────────────────────
+- name: Build cloned GitHub repositories
+  ansible.builtin.include_tasks: build_repos.yml
+  when: ludus_maldev_install_offensive_repos | bool
+
+# ─── 11. Desktop Shortcuts ───────────────────────────────────────────────────
+- name: Create desktop shortcuts
+  ansible.builtin.include_tasks: shortcuts.yml
+  when: ludus_maldev_create_shortcuts | bool
+
+# ─── 12. Environment / PATH ──────────────────────────────────────────────────
+- name: Configure system environment and PATH
+  ansible.builtin.include_tasks: environment.yml
+
+# ─── 13. C2 Clients ──────────────────────────────────────────────────────────
+- name: Install C2 clients
+  ansible.builtin.include_tasks: c2_clients.yml
+  when: ludus_maldev_install_c2_clients | bool

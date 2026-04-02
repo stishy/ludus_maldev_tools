@@ -1,0 +1,45 @@
+---
+# ─── VS Code ──────────────────────────────────────────────────────────────────
+
+- name: Install VS Code
+  block:
+    - name: Install Visual Studio Code via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: vscode
+        state: present
+
+    - name: Add VS Code to system PATH
+      ansible.windows.win_path:
+        elements: "C:\\Program Files\\Microsoft VS Code\\bin"
+        scope: machine
+        state: present
+  rescue:
+    - name: "WARNING: VS Code installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during VS Code install') }}"
+
+# ─── Visual Studio 2022 Community ─────────────────────────────────────────────
+
+- name: Install Visual Studio 2022 Community
+  block:
+    - name: Check if Visual Studio 2022 is already installed (vswhere.exe)
+      ansible.windows.win_stat:
+        path: "{{ ludus_maldev_vswhere_path }}"
+      register: vswhere_check
+
+    - name: Install Visual Studio 2022 Community via Chocolatey (async - may take 60-90 min)
+      chocolatey.chocolatey.win_chocolatey:
+        name: visualstudio2022community
+        state: present
+        package_params: >-
+          --add Microsoft.VisualStudio.Workload.NativeDesktop
+          --add Microsoft.VisualStudio.Workload.ManagedDesktop
+          --add Microsoft.Component.MSBuild
+          --includeRecommended
+      async: 5400
+      poll: 60
+      when: not vswhere_check.stat.exists
+  rescue:
+    - name: "WARNING: Visual Studio 2022 installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during VS2022 install') }}"

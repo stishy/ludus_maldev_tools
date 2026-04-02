@@ -1,0 +1,341 @@
+---
+# ─── PE-bear ──────────────────────────────────────────────────────────────────
+
+- name: Install PE-bear
+  block:
+    - name: Install PE-bear via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: pebear
+        state: present
+  rescue:
+    - name: "WARNING: PE-bear installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during PE-bear install') }}"
+
+# ─── x64dbg ──────────────────────────────────────────────────────────────────
+
+- name: Install x64dbg
+  block:
+    - name: Install x64dbg via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: x64dbg.portable
+        state: present
+  rescue:
+    - name: "WARNING: x64dbg installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during x64dbg install') }}"
+
+# ─── System Informer (formerly Process Hacker) ───────────────────────────────
+
+- name: Install System Informer
+  block:
+    - name: Install System Informer via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: systeminformer
+        state: present
+  rescue:
+    - name: "WARNING: System Informer not available — trying Process Hacker fallback"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('systeminformer package unavailable') }}"
+
+- name: Install Process Hacker (fallback)
+  block:
+    - name: Check if System Informer install succeeded
+      ansible.windows.win_stat:
+        path: "C:\\Program Files\\SystemInformer\\SystemInformer.exe"
+      register: systeminformer_installed
+
+    - name: Install Process Hacker via Chocolatey (fallback)
+      chocolatey.chocolatey.win_chocolatey:
+        name: processhacker
+        state: present
+      when: not systeminformer_installed.stat.exists
+  rescue:
+    - name: "WARNING: Process Hacker installation also failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Process Hacker install') }}"
+
+# ─── Process Monitor ─────────────────────────────────────────────────────────
+
+- name: Install Process Monitor
+  block:
+    - name: Install Process Monitor via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: procmon
+        state: present
+  rescue:
+    - name: "WARNING: Process Monitor installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Process Monitor install') }}"
+
+# ─── Sysinternals Suite ───────────────────────────────────────────────────────
+
+- name: Install Sysinternals Suite
+  block:
+    - name: Install Sysinternals Suite via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: sysinternals
+        state: present
+  rescue:
+    - name: "WARNING: Sysinternals Suite installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Sysinternals install') }}"
+
+# ─── OpenJDK 21 (required by Ghidra) ─────────────────────────────────────────
+
+- name: Install OpenJDK 21
+  block:
+    - name: Install OpenJDK 21 via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: openjdk
+        version: "21.0.2"
+        state: present
+
+    - name: Find OpenJDK 21 install directory
+      ansible.windows.win_find:
+        paths: "C:\\Program Files\\OpenJDK"
+        patterns: "jdk-21*"
+        file_type: directory
+        recurse: false
+      register: openjdk_dir_find
+
+    - name: Set JAVA_HOME environment variable
+      ansible.windows.win_environment:
+        name: JAVA_HOME
+        value: "{{ openjdk_dir_find.files[0].path }}"
+        level: machine
+        state: present
+      when: openjdk_dir_find.files | length > 0
+
+    - name: Add OpenJDK bin to system PATH
+      ansible.windows.win_path:
+        elements: "{{ openjdk_dir_find.files[0].path }}\\bin"
+        scope: machine
+        state: present
+      when: openjdk_dir_find.files | length > 0
+
+    - name: Debug JAVA_HOME set
+      ansible.builtin.debug:
+        msg: "JAVA_HOME set to: {{ openjdk_dir_find.files[0].path | default('not found') }}"
+  rescue:
+    - name: "WARNING: OpenJDK 21 installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during OpenJDK 21 install') }}"
+
+# ─── Ghidra ──────────────────────────────────────────────────────────────────
+
+- name: Install Ghidra
+  block:
+    - name: Install Ghidra via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: ghidra
+        state: present
+  rescue:
+    - name: "WARNING: Ghidra installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Ghidra install') }}"
+
+# ─── dnSpy ───────────────────────────────────────────────────────────────────
+
+- name: Install dnSpy
+  block:
+    - name: Install dnSpy via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: dnspy
+        state: present
+  rescue:
+    - name: "WARNING: dnSpy installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during dnSpy install') }}"
+
+# ─── Detect It Easy (DIE) ────────────────────────────────────────────────────
+
+- name: Install Detect It Easy (DIE)
+  block:
+    - name: Install DIE via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: die
+        state: present
+  rescue:
+    - name: "WARNING: DIE installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during DIE install') }}"
+
+# ─── HxD Hex Editor ──────────────────────────────────────────────────────────
+
+- name: Install HxD
+  block:
+    - name: Install HxD via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: hxd
+        state: present
+  rescue:
+    - name: "WARNING: HxD installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during HxD install') }}"
+
+# ─── CFF Explorer (PE Editor) ────────────────────────────────────────────────
+
+- name: Install CFF Explorer
+  block:
+    - name: Install CFF Explorer (Explorer Suite) via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: explorersuite
+        state: present
+  rescue:
+    - name: "WARNING: CFF Explorer installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during CFF Explorer install') }}"
+
+# ─── IDA Free ────────────────────────────────────────────────────────────────
+
+- name: Install IDA Free
+  block:
+    - name: Install IDA Free via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: ida-free
+        state: present
+  rescue:
+    - name: "WARNING: IDA Free installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during IDA Free install') }}"
+
+# ─── YARA ─────────────────────────────────────────────────────────────────────
+
+- name: Install YARA
+  block:
+    - name: Install YARA via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: yara
+        state: present
+  rescue:
+    - name: "WARNING: YARA installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during YARA install') }}"
+
+# ─── Windows Driver Kit (WDK) ────────────────────────────────────────────────
+
+- name: Install Windows Driver Kit 11
+  block:
+    - name: Install WDK 11 via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: windowsdriverkit11
+        state: present
+  rescue:
+    - name: "WARNING: WDK 11 installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during WDK install') }}"
+
+# ─── Windows SDK ─────────────────────────────────────────────────────────────
+
+- name: Install Windows SDK
+  block:
+    - name: Install Windows SDK via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: windows-sdk-10-version-2004-all
+        state: present
+  rescue:
+    - name: "WARNING: Windows SDK installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Windows SDK install') }}"
+
+# ─── UPX (PE Packer) ─────────────────────────────────────────────────────────
+
+- name: Install UPX
+  block:
+    - name: Install UPX via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: upx
+        state: present
+  rescue:
+    - name: "WARNING: UPX installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during UPX install') }}"
+
+# ─── Resource Hacker (PE Resource Editor) ────────────────────────────────────
+
+- name: Install Resource Hacker
+  block:
+    - name: Install Resource Hacker via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: reshack
+        state: present
+  rescue:
+    - name: "WARNING: Resource Hacker installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Resource Hacker install') }}"
+
+# ─── PE-sieve (Process Hollowing Detector) ───────────────────────────────────
+
+- name: Install PE-sieve
+  block:
+    - name: Install PE-sieve via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: pesieve
+        state: present
+  rescue:
+    - name: "WARNING: PE-sieve installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during PE-sieve install') }}"
+
+# ─── ExifTool (Metadata Editor) ──────────────────────────────────────────────
+
+- name: Install ExifTool
+  block:
+    - name: Install ExifTool via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: exiftool
+        state: present
+  rescue:
+    - name: "WARNING: ExifTool installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during ExifTool install') }}"
+
+# ─── ConfuserEx (.NET Obfuscator) ────────────────────────────────────────────
+
+- name: Install ConfuserEx
+  block:
+    - name: Install ConfuserEx via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: confuserex
+        state: present
+  rescue:
+    - name: "WARNING: ConfuserEx installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during ConfuserEx install') }}"
+
+# ─── CyberChef (Data Transformer) ────────────────────────────────────────────
+
+- name: Install CyberChef
+  block:
+    - name: Install CyberChef via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: cyberchef
+        state: present
+  rescue:
+    - name: "WARNING: CyberChef installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during CyberChef install') }}"
+
+# ─── WinDbg (Windows Debugger) ───────────────────────────────────────────────
+# Modern WinDbg Preview is Store-only; install legacy WinDbg via Choco.
+# Skip if WDK already installed the debugger tools.
+
+- name: Install WinDbg
+  block:
+    - name: Check if WinDbg already present from WDK
+      ansible.windows.win_stat:
+        path: "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\windbg.exe"
+      register: windbg_wdk_check
+
+    - name: Install WinDbg via Chocolatey (if not already present from WDK)
+      chocolatey.chocolatey.win_chocolatey:
+        name: windbg
+        state: present
+      when: not windbg_wdk_check.stat.exists
+  rescue:
+    - name: "WARNING: WinDbg installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during WinDbg install') }}"
+
+

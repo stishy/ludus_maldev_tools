@@ -1,0 +1,66 @@
+---
+# ─── Python 3 ─────────────────────────────────────────────────────────────────
+
+- name: Install Python 3
+  block:
+    - name: Install Python 3 via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: python3
+        state: present
+
+    - name: Install Python maldev pip packages
+      ansible.windows.win_powershell:
+        script: |
+          $packages = @('pycryptodome', 'pefile', 'capstone', 'keystone-engine', 'requests')
+          $changed = $false
+          foreach ($pkg in $packages) {
+            $null = & python -m pip show $pkg 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              & python -m pip install $pkg --quiet
+              $changed = $true
+            }
+          }
+          $Ansible.Changed = $changed
+  rescue:
+    - name: "WARNING: Python 3 installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Python 3 install') }}"
+
+# ─── Go ───────────────────────────────────────────────────────────────────────
+
+- name: Install Go
+  block:
+    - name: Install Go via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: golang
+        state: present
+  rescue:
+    - name: "WARNING: Go installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Go install') }}"
+
+# ─── Rust ─────────────────────────────────────────────────────────────────────
+
+- name: Install Rust
+  block:
+    - name: Install Rust via Chocolatey (installs via rustup)
+      chocolatey.chocolatey.win_chocolatey:
+        name: rust
+        state: present
+  rescue:
+    - name: "WARNING: Rust installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Rust install') }}"
+
+# ─── Nim ──────────────────────────────────────────────────────────────────────
+
+- name: Install Nim
+  block:
+    - name: Install Nim via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: nim
+        state: present
+  rescue:
+    - name: "WARNING: Nim installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Nim install') }}"

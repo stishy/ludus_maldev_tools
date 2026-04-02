@@ -1,0 +1,117 @@
+---
+# ─── Windows Defender ────────────────────────────────────────────────────────
+# NOTE: Tamper Protection may block direct registry writes to Defender keys.
+# All win_regedit tasks use failed_when: false so the role proceeds even if
+# Tamper Protection prevents the write. The PowerShell tasks also use try/catch.
+# A reboot after this role completes is recommended to ensure all changes apply.
+
+- name: Disable Defender tamper protection via registry
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows Defender\Features
+    name: TamperProtection
+    data: 4
+    type: dword
+  failed_when: false
+
+- name: Disable Defender via policy registry (belt-and-suspenders)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender
+    name: DisableAntiSpyware
+    data: 1
+    type: dword
+  failed_when: false
+
+- name: Disable Defender real-time monitoring
+  ansible.windows.win_powershell:
+    script: |
+      try {
+        Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction Stop
+        $Ansible.Changed = $true
+      } catch {
+        # MpPreference may not be available if Defender is already fully disabled
+        # or if Tamper Protection is blocking the change
+        $Ansible.Changed = $false
+      }
+
+- name: Disable Defender cloud-delivered protection
+  ansible.windows.win_powershell:
+    script: |
+      try {
+        Set-MpPreference -MAPSReporting Disabled -ErrorAction Stop
+        $Ansible.Changed = $true
+      } catch {
+        $Ansible.Changed = $false
+      }
+
+- name: Disable Defender automatic sample submission
+  ansible.windows.win_powershell:
+    script: |
+      try {
+        Set-MpPreference -SubmitSamplesConsent NeverSend -ErrorAction Stop
+        $Ansible.Changed = $true
+      } catch {
+        $Ansible.Changed = $false
+      }
+
+- name: Add C:\Tools to Defender exclusion path
+  ansible.windows.win_powershell:
+    script: |
+      try {
+        $prefs = Get-MpPreference -ErrorAction Stop
+        if ($prefs.ExclusionPath -notcontains 'C:\Tools') {
+          Add-MpPreference -ExclusionPath 'C:\Tools' -ErrorAction Stop
+          $Ansible.Changed = $true
+        } else {
+          $Ansible.Changed = $false
+        }
+      } catch {
+        $Ansible.Changed = $false
+      }
+
+# ─── AMSI ────────────────────────────────────────────────────────────────────
+
+- name: Disable Windows Script Host (AMSI surface reduction)
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows Script Host\Settings
+    name: Enabled
+    data: 0
+    type: dword
+  failed_when: false
+
+- name: Create AMSI registry key
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\AMSI
+    state: present
+  failed_when: false
+
+- name: Disable AMSI providers via registry
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\AMSI
+    name: Enabled
+    data: 0
+    type: dword
+  failed_when: false
+
+# ─── Windows Firewall ────────────────────────────────────────────────────────
+
+- name: Disable Windows Firewall for all profiles
+  ansible.windows.win_powershell:
+    script: |
+      try {
+        $profiles = Get-NetFirewallProfile -ErrorAction Stop
+        $changed = $false
+        foreach ($profile in $profiles) {
+          if ($profile.Enabled) {
+            $changed = $true
+          }
+        }
+        Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False -ErrorAction Stop
+        $Ansible.Changed = $changed
+      } catch {
+        $Ansible.Changed = $false
+      }
+
+- name: Verify firewall is off (belt-and-suspenders via netsh)
+  ansible.windows.win_shell: netsh advfirewall set allprofiles state off
+  changed_when: false
+  failed_when: false

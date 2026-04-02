@@ -1,0 +1,24 @@
+---
+- name: Check if Chocolatey is already installed
+  ansible.windows.win_stat:
+    path: "{{ ludus_maldev_choco_exe }}"
+  register: choco_check
+
+- name: Bootstrap Chocolatey package manager
+  ansible.windows.win_powershell:
+    script: |
+      [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+      Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+      $Ansible.Changed = $true
+  when: not choco_check.stat.exists
+
+- name: Ensure Chocolatey is up to date
+  chocolatey.chocolatey.win_chocolatey:
+    name: chocolatey
+    state: present
+  when: choco_check.stat.exists
+
+- name: Configure Chocolatey to allow global confirmation
+  ansible.windows.win_command: "C:\\ProgramData\\chocolatey\\bin\\choco.exe feature enable -n allowGlobalConfirmation"
+  changed_when: false
+  failed_when: false

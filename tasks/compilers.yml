@@ -1,0 +1,40 @@
+---
+# ─── MSYS2 / MinGW ───────────────────────────────────────────────────────────
+
+- name: Install MSYS2
+  block:
+    - name: Install MSYS2 (MinGW environment) via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: msys2
+        state: present
+  rescue:
+    - name: "WARNING: MSYS2 installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during MSYS2 install') }}"
+
+# ─── NASM ─────────────────────────────────────────────────────────────────────
+
+- name: Install NASM
+  block:
+    - name: Install NASM assembler via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: nasm
+        state: present
+  rescue:
+    - name: "WARNING: NASM installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during NASM install') }}"
+
+# ─── CMake ────────────────────────────────────────────────────────────────────
+
+- name: Install CMake
+  block:
+    - name: Install CMake via Chocolatey (add to system PATH)
+      chocolatey.chocolatey.win_chocolatey:
+        name: cmake
+        state: present
+        install_args: "ADD_CMAKE_TO_PATH=System"
+  rescue:
+    - name: "WARNING: CMake installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during CMake install') }}"

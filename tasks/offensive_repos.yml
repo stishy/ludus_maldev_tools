@@ -1,0 +1,181 @@
+---
+# ─── Ensure Repos Directory Exists ───────────────────────────────────────────
+
+- name: Ensure repos directory exists
+  block:
+    - name: Create repos directory
+      ansible.windows.win_file:
+        path: "{{ ludus_maldev_repos_dir }}"
+        state: directory
+  rescue:
+    - name: "WARNING: Could not create repos directory — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error creating repos directory') }}"
+
+# ─── Clone Offensive Repos ───────────────────────────────────────────────────
+
+- name: Clone offensive GitHub repositories
+  block:
+    - name: Check if repo already exists
+      ansible.windows.win_stat:
+        path: "{{ ludus_maldev_repos_dir }}\\{{ item.name }}"
+      register: repo_checks
+      loop: "{{ ludus_maldev_offensive_repos }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Clone offensive GitHub repositories (skip if already present)
+      ansible.windows.win_command: >
+        "C:\Program Files\Git\bin\git.exe" clone {{ item.item.url }}
+        "{{ ludus_maldev_repos_dir }}\{{ item.item.name }}"
+      loop: "{{ repo_checks.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: not item.stat.exists
+      changed_when: true
+      failed_when: false
+  rescue:
+    - name: "WARNING: Offensive repos clone failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during repo cloning') }}"
+
+# ─── ThreatCheck (clone + compile with MSBuild) ───────────────────────────────
+# ThreatCheck targets .NET Framework 4.8.1 (old-style .csproj) — requires msbuild,
+# not dotnet build. VS2022 is already installed and provides MSBuild.
+
+- name: Install ThreatCheck
+  block:
+    - name: Check if ThreatCheck binary already exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\ThreatCheck\\ThreatCheck\\bin\\Release\\ThreatCheck.exe"
+      register: threatcheck_bin_check
+
+    - name: Check if ThreatCheck solution file exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\ThreatCheck\\ThreatCheck.sln"
+      register: threatcheck_sln_check
+      when: not threatcheck_bin_check.stat.exists
+
+    - name: Remove incomplete ThreatCheck directory if sln is missing
+      ansible.windows.win_file:
+        path: "C:\\Tools\\ThreatCheck"
+        state: absent
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - (threatcheck_sln_check is not defined) or (not threatcheck_sln_check.stat.exists)
+      failed_when: false
+
+    - name: Clone ThreatCheck repository
+      ansible.windows.win_command: >-
+        "C:\Program Files\Git\bin\git.exe" clone https://github.com/rasta-mouse/ThreatCheck "C:\Tools\ThreatCheck"
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - (threatcheck_sln_check is not defined) or (not threatcheck_sln_check.stat.exists)
+      changed_when: true
+
+    - name: Re-check ThreatCheck solution file after clone
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\ThreatCheck\\ThreatCheck.sln"
+      register: threatcheck_sln_post_clone
+      when: not threatcheck_bin_check.stat.exists
+
+    - name: Install .NET Framework 4.8.1 Developer Pack (required by ThreatCheck MSBuild)
+      chocolatey.chocolatey.win_chocolatey:
+        name: netfx-4.8.1-devpack
+        state: present
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - threatcheck_sln_post_clone is defined
+        - threatcheck_sln_post_clone.stat.exists
+
+    - name: Restore NuGet packages for ThreatCheck
+      ansible.windows.win_powershell:
+        script: |
+          $nuget = "C:\ProgramData\chocolatey\bin\nuget.exe"
+          if (-not (Test-Path $nuget)) {
+            # Download nuget.exe if not present
+            Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" `
+              -OutFile "C:\Tools\nuget.exe" -UseBasicParsing
+            $nuget = "C:\Tools\nuget.exe"
+          }
+          & $nuget restore "C:\Tools\ThreatCheck\ThreatCheck.sln" -NonInteractive
+          $Ansible.Changed = $true
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - threatcheck_sln_post_clone is defined
+        - threatcheck_sln_post_clone.stat.exists
+
+    - name: Find MSBuild.exe via vswhere
+      ansible.windows.win_powershell:
+        script: |
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild `
+              -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+            $Ansible.Result = $msbuild
+          }
+          $Ansible.Changed = $false
+      register: msbuild_path_result
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - threatcheck_sln_post_clone is defined
+        - threatcheck_sln_post_clone.stat.exists
+
+    - name: Build ThreatCheck with MSBuild
+      ansible.windows.win_powershell:
+        script: |
+          $msbuild = "{{ msbuild_path_result.result | default('') }}"
+          if (-not $msbuild -or -not (Test-Path $msbuild)) {
+            # Fallback path for VS2022
+            $msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
+          }
+          & $msbuild "C:\Tools\ThreatCheck\ThreatCheck.sln" `
+            /p:Configuration=Release `
+            /p:Platform="Any CPU" `
+            /t:Build `
+            /nologo `
+            /verbosity:minimal
+          $Ansible.Changed = $true
+      register: threatcheck_build
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - threatcheck_sln_post_clone is defined
+        - threatcheck_sln_post_clone.stat.exists
+
+    - name: Debug ThreatCheck build output
+      ansible.builtin.debug:
+        msg: "ThreatCheck build: {{ threatcheck_build.output | default([]) | join(' ') }}"
+      when:
+        - not threatcheck_bin_check.stat.exists
+        - threatcheck_build is defined
+
+    - name: Add ThreatCheck bin to system PATH
+      ansible.windows.win_path:
+        elements: "C:\\Tools\\ThreatCheck\\ThreatCheck\\bin\\Release"
+        scope: machine
+        state: present
+  rescue:
+    - name: "WARNING: ThreatCheck clone/compile failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during ThreatCheck install') }}"
+
+# ─── Post-clone: Install SysWhispers3 Python Requirements ────────────────────
+
+- name: Install SysWhispers3 requirements
+  block:
+    - name: Check if SysWhispers3 requirements.txt exists
+      ansible.windows.win_stat:
+        path: "{{ ludus_maldev_repos_dir }}\\SysWhispers3\\requirements.txt"
+      register: syswhispers3_req_check
+
+    - name: Install SysWhispers3 Python requirements
+      ansible.windows.win_powershell:
+        script: |
+          $reqFile = "{{ ludus_maldev_repos_dir }}\SysWhispers3\requirements.txt"
+          & python -m pip install -r $reqFile --quiet
+          $Ansible.Changed = $true
+      when: syswhispers3_req_check.stat.exists
+  rescue:
+    - name: "WARNING: SysWhispers3 pip requirements install failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during SysWhispers3 pip install') }}"

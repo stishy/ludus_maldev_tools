@@ -1,0 +1,38 @@
+---
+# ─── Core Utilities via Chocolatey ───────────────────────────────────────────
+
+- name: Install core utilities
+  block:
+    - name: Install core utilities via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name:
+          - git
+          - 7zip
+          - wget
+          - curl
+          - notepadplusplus
+        state: present
+  rescue:
+    - name: "WARNING: Core utilities install failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during utilities install') }}"
+
+# ─── Configure Git ───────────────────────────────────────────────────────────
+
+- name: Configure git
+  block:
+    - name: Check if git is installed
+      ansible.windows.win_stat:
+        path: "C:\\Program Files\\Git\\bin\\git.exe"
+      register: git_check
+
+    - name: Configure git global autocrlf to false
+      ansible.windows.win_command: >
+        "C:\Program Files\Git\bin\git.exe" config --global core.autocrlf false
+      changed_when: false
+      failed_when: false
+      when: git_check.stat.exists
+  rescue:
+    - name: "WARNING: Git configuration failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during git configuration') }}"

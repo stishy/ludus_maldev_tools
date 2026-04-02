@@ -1,0 +1,13 @@
+---
+# ─── Networking Tools via Chocolatey ─────────────────────────────────────────
+
+- name: Install Wireshark
+  block:
+    - name: Install Wireshark via Chocolatey (includes Npcap)
+      chocolatey.chocolatey.win_chocolatey:
+        name: wireshark
+        state: present
+  rescue:
+    - name: "WARNING: Wireshark installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Wireshark install') }}"

@@ -1,0 +1,283 @@
+---
+# ─── Build Cloned Repos ───────────────────────────────────────────────────────
+# Builds verified on live VM testing. All builds use block/rescue — non-fatal.
+# Only repos with confirmed working build commands are included.
+#
+# Verified working:
+#   Go:      ScareCrow, Freeze — go build
+#   MinGW:   Fritter — make -f Makefile.mingw (requires MSYS2 make+gcc)
+#   MinGW:   COFFLoader — x86_64-w64-mingw32-gcc direct (64-bit only)
+#   MSBuild: HellsGate, TartarusGate — /p:PlatformToolset=v143 retarget
+#   pip:     Donut — pip3 install . (builds C extension via Python)
+#
+# Excluded (do not build):
+#   BOF.NET         — requires CS beacon.h, GCC __attribute__ syntax (MSVC fails)
+#   InlineExecute-Assembly — no build files at repo root
+#   NimlineWhispers3 — Python code generator, not a compiled project
+
+# ─── Prerequisite: MSYS2 make (required for Fritter / MinGW builds) ───────────
+
+- name: Install MSYS2 make and MinGW toolchain
+  block:
+    - name: Check if MSYS2 make is already installed
+      ansible.windows.win_stat:
+        path: "C:\\tools\\msys64\\usr\\bin\\make.exe"
+      register: msys2_make_check
+
+    - name: Install make + mingw gcc via MSYS2 pacman
+      ansible.windows.win_powershell:
+        script: |
+          & "C:\tools\msys64\usr\bin\bash.exe" -lc "pacman -S --noconfirm make mingw-w64-x86_64-gcc" 2>&1
+          $Ansible.Changed = $true
+      when: not msys2_make_check.stat.exists
+  rescue:
+    - name: "WARNING: MSYS2 make install failed — MinGW builds may fail"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during MSYS2 make install') }}"
+
+# ─── Go Projects ──────────────────────────────────────────────────────────────
+
+- name: Build ScareCrow (Go)
+  block:
+    - name: Check if ScareCrow already built
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\ScareCrow\\ScareCrow.exe"
+      register: scarecrow_bin
+
+    - name: Check if ScareCrow go.mod exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\ScareCrow\\go.mod"
+      register: scarecrow_src
+      when: not scarecrow_bin.stat.exists
+
+    - name: Build ScareCrow
+      ansible.windows.win_powershell:
+        script: |
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          Set-Location "C:\Tools\ScareCrow"
+          & go build -o ScareCrow.exe . 2>&1
+          $Ansible.Changed = $true
+      when:
+        - not scarecrow_bin.stat.exists
+        - scarecrow_src is defined
+        - scarecrow_src.stat.exists
+  rescue:
+    - name: "WARNING: ScareCrow build failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during ScareCrow build') }}"
+
+- name: Add ScareCrow to PATH
+  ansible.windows.win_path:
+    elements: "C:\\Tools\\ScareCrow"
+    scope: machine
+    state: present
+  failed_when: false
+
+- name: Build Freeze (Go)
+  block:
+    - name: Check if Freeze already built
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\Freeze\\Freeze.exe"
+      register: freeze_bin
+
+    - name: Check if Freeze go.mod exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\Freeze\\go.mod"
+      register: freeze_src
+      when: not freeze_bin.stat.exists
+
+    - name: Build Freeze
+      ansible.windows.win_powershell:
+        script: |
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          Set-Location "C:\Tools\Freeze"
+          & go build -o Freeze.exe . 2>&1
+          $Ansible.Changed = $true
+      when:
+        - not freeze_bin.stat.exists
+        - freeze_src is defined
+        - freeze_src.stat.exists
+  rescue:
+    - name: "WARNING: Freeze build failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Freeze build') }}"
+
+- name: Add Freeze to PATH
+  ansible.windows.win_path:
+    elements: "C:\\Tools\\Freeze"
+    scope: machine
+    state: present
+  failed_when: false
+
+# ─── MinGW Projects ───────────────────────────────────────────────────────────
+
+- name: Build Fritter (C — MinGW Makefile.mingw)
+  block:
+    - name: Check if Fritter already built
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\Fritter\\fritter.exe"
+      register: fritter_bin
+
+    - name: Check if Fritter Makefile.mingw exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\Fritter\\Makefile.mingw"
+      register: fritter_makefile
+      when: not fritter_bin.stat.exists
+
+    - name: Build Fritter with MinGW make
+      ansible.windows.win_powershell:
+        script: |
+          $env:Path = "C:\tools\msys64\mingw64\bin;C:\tools\msys64\usr\bin;" + [System.Environment]::GetEnvironmentVariable('Path','Machine')
+          Set-Location "C:\Tools\Fritter"
+          & make -f Makefile.mingw 2>&1
+          $Ansible.Changed = $true
+      when:
+        - not fritter_bin.stat.exists
+        - fritter_makefile is defined
+        - fritter_makefile.stat.exists
+  rescue:
+    - name: "WARNING: Fritter build failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Fritter build') }}"
+
+- name: Add Fritter to PATH
+  ansible.windows.win_path:
+    elements: "C:\\Tools\\Fritter"
+    scope: machine
+    state: present
+  failed_when: false
+
+- name: Build COFFLoader (C — MinGW 64-bit only)
+  block:
+    - name: Check if COFFLoader already built
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\COFFLoader\\COFFLoader64.exe"
+      register: coffloader_bin
+
+    - name: Check if COFFLoader source exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\COFFLoader\\COFFLoader.c"
+      register: coffloader_src
+      when: not coffloader_bin.stat.exists
+
+    - name: Build COFFLoader 64-bit with MinGW
+      ansible.windows.win_powershell:
+        script: |
+          $env:Path = "C:\tools\msys64\mingw64\bin;C:\tools\msys64\usr\bin;" + [System.Environment]::GetEnvironmentVariable('Path','Machine')
+          Set-Location "C:\Tools\COFFLoader"
+          & x86_64-w64-mingw32-gcc -Wall -DCOFF_STANDALONE beacon_compatibility.c COFFLoader.c -o COFFLoader64.exe 2>&1
+          $Ansible.Changed = $true
+      when:
+        - not coffloader_bin.stat.exists
+        - coffloader_src is defined
+        - coffloader_src.stat.exists
+  rescue:
+    - name: "WARNING: COFFLoader build failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during COFFLoader build') }}"
+
+- name: Add COFFLoader to PATH
+  ansible.windows.win_path:
+    elements: "C:\\Tools\\COFFLoader"
+    scope: machine
+    state: present
+  failed_when: false
+
+# ─── MSBuild Projects (VS2022 toolset v143 retarget) ─────────────────────────
+
+- name: Build HellsGate (.NET/C++ — MSBuild v143)
+  block:
+    - name: Find MSBuild via vswhere
+      ansible.windows.win_powershell:
+        script: |
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild `
+              -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+            $Ansible.Result = $msbuild
+          }
+          $Ansible.Changed = $false
+      register: hellsgate_msbuild
+
+    - name: Check if HellsGate solution exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\HellsGate\\HellsGate.sln"
+      register: hellsgate_sln
+
+    - name: Build HellsGate with MSBuild (v143 retarget)
+      ansible.windows.win_powershell:
+        script: |
+          $msbuild = "{{ hellsgate_msbuild.result | default('') }}"
+          if (-not $msbuild -or -not (Test-Path $msbuild)) {
+            $msbuild = "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
+          }
+          & $msbuild "C:\Tools\HellsGate\HellsGate.sln" `
+            /p:Configuration=Release `
+            /p:PlatformToolset=v143 `
+            /nologo /verbosity:minimal 2>&1
+          $Ansible.Changed = $true
+      when: hellsgate_sln.stat.exists
+  rescue:
+    - name: "WARNING: HellsGate build failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during HellsGate build') }}"
+
+- name: Build TartarusGate (.NET/C++ — MSBuild v143)
+  block:
+    - name: Check if TartarusGate solution exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\TartarusGate\\HellsGate.sln"
+      register: tartarusgate_sln
+
+    - name: Build TartarusGate with MSBuild (v143 retarget)
+      ansible.windows.win_powershell:
+        script: |
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = if (Test-Path $vswhere) {
+            & $vswhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
+          } else {
+            "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe"
+          }
+          & $msbuild "C:\Tools\TartarusGate\HellsGate.sln" `
+            /p:Configuration=Release `
+            /p:PlatformToolset=v143 `
+            /nologo /verbosity:minimal 2>&1
+          $Ansible.Changed = $true
+      when: tartarusgate_sln.stat.exists
+  rescue:
+    - name: "WARNING: TartarusGate build failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during TartarusGate build') }}"
+
+# ─── Python/pip Projects ──────────────────────────────────────────────────────
+
+- name: Build/Install Donut (Python pip install — builds C extension)
+  block:
+    - name: Check if Donut is already pip-installed
+      ansible.windows.win_powershell:
+        script: |
+          $null = & python -m pip show donut 2>&1
+          if ($LASTEXITCODE -eq 0) { $Ansible.Result = "installed" } else { $Ansible.Result = "missing" }
+          $Ansible.Changed = $false
+      register: donut_pip_check
+
+    - name: Check if Donut setup.py exists
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\Donut\\setup.py"
+      register: donut_setup
+      when: donut_pip_check.result != "installed"
+
+    - name: Install Donut via pip
+      ansible.windows.win_powershell:
+        script: |
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          & python -m pip install "C:\Tools\Donut" --quiet 2>&1
+          $Ansible.Changed = $true
+      when:
+        - donut_pip_check.result != "installed"
+        - donut_setup is defined
+        - donut_setup.stat.exists
+  rescue:
+    - name: "WARNING: Donut pip install failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Donut pip install') }}"

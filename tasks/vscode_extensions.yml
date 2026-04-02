@@ -1,0 +1,53 @@
+---
+# ─── VS Code Extensions ───────────────────────────────────────────────────────
+# Extensions are installed to a SHARED machine-wide directory C:\Tools\.vscode-extensions
+# and the VSCODE_EXTENSIONS machine env var is set so ALL users (domain admin,
+# localuser, or any future user) automatically pick up extensions on first launch.
+# No per-user profile or login required.
+
+- name: Install VS Code extensions
+  block:
+    - name: Check if VS Code CLI is available
+      ansible.windows.win_stat:
+        path: "C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd"
+      register: vscode_cli_check
+
+    - name: Ensure shared VS Code extensions directory exists
+      ansible.windows.win_file:
+        path: "C:\\Tools\\.vscode-extensions"
+        state: directory
+      when: vscode_cli_check.stat.exists
+      failed_when: false
+
+    - name: Set VSCODE_EXTENSIONS machine environment variable
+      ansible.windows.win_environment:
+        name: VSCODE_EXTENSIONS
+        value: "C:\\Tools\\.vscode-extensions"
+        level: machine
+        state: present
+      when: vscode_cli_check.stat.exists
+      failed_when: false
+
+    - name: Install VS Code extensions to shared directory
+      ansible.windows.win_powershell:
+        script: |
+          $extDir = "C:\Tools\.vscode-extensions"
+          $env:VSCODE_EXTENSIONS = $extDir
+          $installedRaw = & "C:\Program Files\Microsoft VS Code\bin\code.cmd" `
+            --extensions-dir $extDir --list-extensions 2>&1
+          $installed = $installedRaw | ForEach-Object { $_.Trim().ToLower() }
+          $ext = "{{ item }}"
+          if ($installed -notcontains $ext.ToLower()) {
+            & "C:\Program Files\Microsoft VS Code\bin\code.cmd" `
+              --extensions-dir $extDir --install-extension $ext --force 2>&1
+            $Ansible.Changed = $true
+          } else {
+            $Ansible.Changed = $false
+          }
+      loop: "{{ ludus_maldev_vscode_extensions }}"
+      failed_when: false
+      when: vscode_cli_check.stat.exists
+  rescue:
+    - name: "WARNING: VS Code extensions installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during VS Code extensions install') }}"

@@ -1,0 +1,271 @@
+---
+# ─── Desktop Shortcuts (Public Desktop — available to all users) ─────────────
+# community.windows.win_shortcut is naturally idempotent
+# NOTE: VS Code shortcut is intentionally omitted — Chocolatey's vscode package
+# already creates "Visual Studio Code.lnk" on the Public Desktop automatically.
+
+# ─── PE-bear (Chocolatey portable) ───────────────────────────────────────────
+
+- name: Find PE-bear executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\lib\\pebear\\tools"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "PE-bear.exe"
+    recurse: true
+  register: pebear_exe_find
+  failed_when: false
+
+- name: Create PE-bear desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ pebear_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\PE-bear.lnk"
+    description: "PE-bear PE file analysis tool"
+  when: pebear_exe_find.files | length > 0
+  failed_when: false
+
+# ─── x64dbg (Chocolatey portable) ────────────────────────────────────────────
+
+- name: Find x64dbg executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\lib\\x64dbg.portable\\tools"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "x64dbg.exe"
+    recurse: true
+  register: x64dbg_exe_find
+  failed_when: false
+
+- name: Create x64dbg desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ x64dbg_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\x64dbg.lnk"
+    description: "x64dbg 64-bit debugger"
+  when: x64dbg_exe_find.files | length > 0
+  failed_when: false
+
+- name: Find x32dbg executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\lib\\x64dbg.portable\\tools"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "x32dbg.exe"
+    recurse: true
+  register: x32dbg_exe_find
+  failed_when: false
+
+- name: Create x32dbg desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ x32dbg_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\x32dbg.lnk"
+    description: "x32dbg 32-bit debugger"
+  when: x32dbg_exe_find.files | length > 0
+  failed_when: false
+
+# ─── System Informer ─────────────────────────────────────────────────────────
+
+- name: Find System Informer executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\Program Files\\SystemInformer"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "SystemInformer.exe"
+    recurse: false
+  register: systeminformer_exe_find
+  failed_when: false
+
+- name: Create System Informer desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ systeminformer_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\System Informer.lnk"
+    description: "System Informer (formerly Process Hacker)"
+  when: systeminformer_exe_find.files | length > 0
+  failed_when: false
+
+# ─── Process Monitor ─────────────────────────────────────────────────────────
+
+- name: Find Process Monitor executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\bin"
+      - "C:\\ProgramData\\chocolatey\\lib\\sysinternals\\tools"
+    patterns:
+      - "Procmon.exe"
+      - "procmon.exe"
+      - "procmon64.exe"
+    recurse: false
+  register: procmon_exe_find
+  failed_when: false
+
+- name: Create Process Monitor desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ procmon_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\Process Monitor.lnk"
+    description: "Sysinternals Process Monitor"
+  when: procmon_exe_find.files | length > 0
+  failed_when: false
+
+# ─── Ghidra ──────────────────────────────────────────────────────────────────
+# Ghidra is launched via a wrapper cmd that reads JAVA_HOME from the registry.
+# This is necessary because explorer.exe often doesn't reload JAVA_HOME from
+# WM_SETTINGCHANGE, causing 'java command could not be found' errors on launch.
+
+- name: Find Ghidra launch script
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\lib\\ghidra"
+    patterns: "ghidraRun.bat"
+    recurse: true
+  register: ghidra_find
+  failed_when: false
+
+- name: Create Ghidra launcher wrapper script
+  ansible.windows.win_copy:
+    dest: "C:\\Tools\\ghidra_launch.cmd"
+    content: |
+      @echo off
+      for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v JAVA_HOME 2^>nul') do set "JAVA_HOME=%%b"
+      if defined JAVA_HOME (
+        set "PATH=%JAVA_HOME%\bin;%PATH%"
+      )
+      call "{{ ghidra_find.files[0].path }}"
+  when: ghidra_find.files | length > 0
+  failed_when: false
+
+- name: Create Ghidra desktop shortcut (via launcher wrapper)
+  community.windows.win_shortcut:
+    src: "C:\\Windows\\System32\\cmd.exe"
+    args: "/c C:\\Tools\\ghidra_launch.cmd"
+    dest: "C:\\Users\\Public\\Desktop\\Ghidra.lnk"
+    description: "Ghidra Software Reverse Engineering Suite"
+    windowstyle: minimized
+  when: ghidra_find.files | length > 0
+  failed_when: false
+
+# ─── dnSpy (Chocolatey) ───────────────────────────────────────────────────────
+
+- name: Find dnSpy executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\lib\\dnspy\\tools"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "dnSpy.exe"
+    recurse: true
+  register: dnspy_exe_find
+  failed_when: false
+
+- name: Create dnSpy desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ dnspy_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\dnSpy.lnk"
+    description: "dnSpy .NET assembly editor and debugger"
+  when: dnspy_exe_find.files | length > 0
+  failed_when: false
+
+# ─── Detect It Easy (Chocolatey) ─────────────────────────────────────────────
+
+- name: Find DIE executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\ProgramData\\chocolatey\\lib\\die\\tools"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "die.exe"
+    recurse: true
+  register: die_exe_find
+  failed_when: false
+
+- name: Create DIE desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ die_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\DIE.lnk"
+    description: "Detect It Easy - file type detector"
+  when: die_exe_find.files | length > 0
+  failed_when: false
+
+# ─── HxD ─────────────────────────────────────────────────────────────────────
+
+- name: Find HxD executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\Program Files\\HxD"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "HxD.exe"
+    recurse: false
+  register: hxd_exe_find
+  failed_when: false
+
+- name: Create HxD desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ hxd_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\HxD.lnk"
+    description: "HxD Hex Editor"
+  when: hxd_exe_find.files | length > 0
+  failed_when: false
+
+# ─── Wireshark ────────────────────────────────────────────────────────────────
+
+- name: Find Wireshark executable
+  ansible.windows.win_find:
+    paths:
+      - "C:\\Program Files\\Wireshark"
+      - "C:\\ProgramData\\chocolatey\\lib\\wireshark\\tools"
+      - "C:\\ProgramData\\chocolatey\\bin"
+    patterns: "Wireshark.exe"
+    recurse: true
+  register: wireshark_exe_find
+  failed_when: false
+
+- name: Create Wireshark desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ wireshark_exe_find.files[0].path }}"
+    dest: "C:\\Users\\Public\\Desktop\\Wireshark.lnk"
+    description: "Wireshark network protocol analyzer"
+  when: wireshark_exe_find.files | length > 0
+  failed_when: false
+
+# ─── Tools Folder ─────────────────────────────────────────────────────────────
+
+- name: Create Tools Folder desktop shortcut
+  community.windows.win_shortcut:
+    src: "{{ ludus_maldev_tools_dir }}"
+    dest: "C:\\Users\\Public\\Desktop\\Tools Folder.lnk"
+    description: "C:\\Tools - Maldev tools directory"
+  failed_when: false
+
+# ─── Defender Toggle Scripts ───────────────────────────────────────────────────
+
+- name: Deploy Enable-Defender.ps1 to C:\Tools
+  ansible.windows.win_copy:
+    src: Enable-Defender.ps1
+    dest: "C:\\Tools\\Enable-Defender.ps1"
+  failed_when: false
+
+- name: Deploy Test-VSCodeExtensions.ps1 to C:\Tools
+  ansible.windows.win_copy:
+    src: Test-VSCodeExtensions.ps1
+    dest: "C:\\Tools\\Test-VSCodeExtensions.ps1"
+  failed_when: false
+
+- name: Deploy Disable-Defender.ps1 to C:\Tools
+  ansible.windows.win_copy:
+    src: Disable-Defender.ps1
+    dest: "C:\\Tools\\Disable-Defender.ps1"
+  failed_when: false
+
+- name: Create Enable-Defender desktop shortcut (runs as Admin)
+  community.windows.win_shortcut:
+    src: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+    dest: "C:\\Users\\Public\\Desktop\\Enable-Defender.lnk"
+    args: "-ExecutionPolicy Bypass -File C:\\Tools\\Enable-Defender.ps1"
+    description: "Re-enable Defender/AMSI/Firewall (for YARA/ThreatCheck testing)"
+    run_as_admin: true
+  failed_when: false
+
+- name: Create Disable-Defender desktop shortcut (runs as Admin)
+  community.windows.win_shortcut:
+    src: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+    dest: "C:\\Users\\Public\\Desktop\\Disable-Defender.lnk"
+    args: "-ExecutionPolicy Bypass -File C:\\Tools\\Disable-Defender.ps1"
+    description: "Disable Defender/AMSI/Firewall (maldev mode)"
+    run_as_admin: true
+  failed_when: false

@@ -1,0 +1,68 @@
+---
+# ─── Sliver C2 Client ─────────────────────────────────────────────────────────
+
+- name: Install Sliver C2 client
+  block:
+    - name: Check if Sliver client is already installed
+      ansible.windows.win_stat:
+        path: "C:\\Tools\\sliver\\sliver-client.exe"
+      register: sliver_check
+
+    - name: Get Sliver latest release info from GitHub API (controller-side)
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/BishopFox/sliver/releases/latest"
+        method: GET
+        headers:
+          Accept: "application/vnd.github.v3+json"
+          User-Agent: "ansible-ludus-maldev"
+        return_content: true
+      register: sliver_release
+      delegate_to: localhost
+      when: not sliver_check.stat.exists
+
+    - name: Debug Sliver release asset names
+      ansible.builtin.debug:
+        msg: "Sliver assets: {{ sliver_release.json.assets | map(attribute='name') | list }}"
+      when: not sliver_check.stat.exists
+
+    - name: Set Sliver client Windows download URL
+      ansible.builtin.set_fact:
+        sliver_client_url: >-
+          {{ (sliver_release.json.assets
+              | selectattr('name', 'search', 'sliver-client_windows-amd64')
+              | map(attribute='browser_download_url')
+              | list | first | default(''))
+             or (sliver_release.json.assets
+              | selectattr('name', 'search', 'sliver-client_windows')
+              | rejectattr('name', 'search', 'minisig')
+              | map(attribute='browser_download_url')
+              | list | first | default('')) }}
+      when: not sliver_check.stat.exists
+
+    - name: Ensure Sliver install directory exists
+      ansible.windows.win_file:
+        path: "C:\\Tools\\sliver"
+        state: directory
+      when: not sliver_check.stat.exists
+
+    - name: Download Sliver client binary
+      ansible.windows.win_get_url:
+        url: "{{ sliver_client_url }}"
+        dest: "C:\\Tools\\sliver\\sliver-client.exe"
+        timeout: 120
+      when:
+        - not sliver_check.stat.exists
+        - sliver_client_url | length > 0
+
+    - name: Add Sliver directory to system PATH
+      ansible.windows.win_path:
+        elements: "C:\\Tools\\sliver"
+        scope: machine
+        state: present
+  rescue:
+    - name: "WARNING: Sliver client installation failed — continuing"
+      ansible.builtin.debug:
+        msg: "{{ ansible_failed_result.msg | default('Unknown error during Sliver install') }}"
+
+# ─── Note: Havoc C2 is Linux-only (QT C++ app, no Windows binaries) ──────────
+# Install Havoc on the Kali box instead. See: https://havocframework.com/docs/installation

@@ -1,0 +1,111 @@
+---
+# ─── VS Code Extension IDs ──────────────────────────────────────────────────
+ludus_maldev_vscode_extensions:
+  # C/C++ development
+  - ms-vscode.cpptools
+  - ms-vscode.cpptools-extension-pack
+  - ms-vscode.cpptools-themes
+  - ms-vscode.cpp-devtools
+  - jeff-hykin.better-cpp-syntax
+  # CMake
+  - ms-vscode.cmake-tools
+  - twxs.cmake
+  # .NET / C#
+  - ms-dotnettools.csharp
+  - ms-dotnettools.csdevkit
+  - ms-dotnettools.vscode-dotnet-runtime
+  # PowerShell
+  - ms-vscode.powershell
+  # Python
+  - ms-python.python
+  - ms-python.debugpy
+  - ms-python.vscode-pylance
+  # Go
+  - golang.go
+  # Rust
+  - rust-lang.rust-analyzer
+  # Assembly
+  - 13xforever.language-x86-64-assembly
+  # YAML / binary
+  - redhat.vscode-yaml
+  - ms-vscode.hexeditor
+
+# ─── Offensive GitHub Repos ──────────────────────────────────────────────────
+ludus_maldev_offensive_repos:
+  # Syscall / Evasion
+  - name: SysWhispers3
+    url: "https://github.com/klezVirus/SysWhispers3"
+  - name: NimlineWhispers3
+    url: "https://github.com/klezVirus/NimlineWhispers3"
+  - name: InlineWhispers2
+    url: "https://github.com/Sh0ckFR/InlineWhispers2"
+  - name: HellsGate
+    url: "https://github.com/am0nsec/HellsGate"
+  - name: TartarusGate
+    url: "https://github.com/trickster0/TartarusGate"
+  # Payload generation
+  - name: Donut
+    url: "https://github.com/TheWover/donut"
+  - name: ScareCrow
+    url: "https://github.com/optiv/ScareCrow"
+  - name: Freeze
+    url: "https://github.com/optiv/Freeze"
+  # .NET / BOF
+  - name: SharpCollection
+    url: "https://github.com/Flangvik/SharpCollection"
+  - name: BOF.NET
+    url: "https://github.com/CCob/BOF.NET"
+  # Kernel / Driver tools
+  - name: KDU
+    url: "https://github.com/hfiref0x/KDU"
+  - name: phnt
+    url: "https://github.com/winsiderss/phnt"
+  # BOF / Beacon Object Files
+  - name: aad_prt_bof
+    url: "https://github.com/wotwot563/aad_prt_bof"
+  - name: ADSyncDump-BOF
+    url: "https://github.com/Paradoxis/ADSyncDump-BOF"
+  - name: BITS-bof
+    url: "https://github.com/EspressoCake/BITS-Host-Transfer-BOF"
+  - name: bof-vs
+    url: "https://github.com/boku7/bof-vs"
+  - name: COFFLoader
+    url: "https://github.com/trustedsec/COFFLoader"
+  - name: CS-Remote-OPs-BOF
+    url: "https://github.com/trustedsec/CS-Remote-OPs-BOF"
+  - name: CS-Situational-Awareness-BOF
+    url: "https://github.com/trustedsec/CS-Situational-Awareness-BOF"
+  - name: eden
+    url: "https://github.com/Cobalt-Strike/eden"
+  - name: GhostKatz
+    url: "https://github.com/zcgonvh/GhostKatz"
+  - name: InlineExecute-Assembly
+    url: "https://github.com/outflanknl/InlineExecute-Assembly"
+  - name: lsawhisper-bof
+    url: "https://github.com/dazzyddos/lsawhisper-bof"
+  - name: sleepmask-vs
+    url: "https://github.com/Cobalt-Strike/sleepmask-vs"
+  # Offensive tools
+  - name: Fritter
+    url: "https://github.com/0xROOTPLS/Fritter"
+
+# ─── Python pip Packages ─────────────────────────────────────────────────────
+ludus_maldev_pip_packages:
+  - pycryptodome
+  - pefile
+  - capstone
+  - keystone-engine
+  - requests
+  - lief
+  - unicorn
+  - yara-python
+  - malduck
+
+# ─── Temp Download Directory ─────────────────────────────────────────────────
+ludus_maldev_tmp_dir: "C:\\Windows\\Temp\\ludus_maldev"
+
+# ─── Visual Studio 2022 installer path for idempotency check ─────────────────
+ludus_maldev_vswhere_path: "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+
+# ─── Chocolatey binary path ──────────────────────────────────────────────────
+ludus_maldev_choco_exe: "C:\\ProgramData\\chocolatey\\bin\\choco.exe"

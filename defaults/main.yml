@@ -1,0 +1,48 @@
+---
+# ─── Category Toggles ──────────────────────────────────────────────────────
+# Set any to false to skip that category entirely
+
+# Disable Defender, AMSI, Firewall
+ludus_maldev_security_disable: true
+
+# Core utilities: git, 7zip, wget, curl, notepad++
+ludus_maldev_install_utilities: true
+
+# Python 3, Go, Rust, Nim
+ludus_maldev_install_languages: true
+
+# MinGW/MSYS2, NASM, CMake
+ludus_maldev_install_compilers: true
+
+# VS Code, Visual Studio 2022 Community
+ludus_maldev_install_ides: true
+
+# VS Code extensions (requires install_ides)
+ludus_maldev_install_vscode_extensions: true
+
+# RE/analysis: PE-bear, x64dbg, dnSpyEx, Ghidra, DIE, etc.
+ludus_maldev_install_re_tools: true
+
+# Wireshark
+ludus_maldev_install_networking: true
+
+# GitHub offensive tool repos (SysWhispers3, Donut, etc.)
+ludus_maldev_install_offensive_repos: true
+
+# Desktop shortcuts for key tools
+ludus_maldev_create_shortcuts: true
+
+# C2 clients: Sliver only (Havoc is Linux-only — install on Kali)
+ludus_maldev_install_c2_clients: true
+
+# ─── Paths ─────────────────────────────────────────────────────────────────
+# Root directory for all tools and cloned repos
+ludus_maldev_tools_dir: "C:\\Tools"
+
+# Directory for cloned GitHub repos (same as tools dir — repos go under C:\Tools\<name>)
+ludus_maldev_repos_dir: "C:\\Tools"
+
+# ─── VS Code Extensions ────────────────────────────────────────────────────
+# Ludus range user for running code --install-extension
+# Override this in role_vars with your actual range user
+ludus_maldev_vscode_user: "localuser"

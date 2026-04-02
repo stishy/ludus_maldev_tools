@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Internal dev tracking
+SESSION_STATE.md
+
+# Build artifacts
+*.tar.gz
+
+# Debug/test scripts
+files/Test-VSCodeExtensions.ps1

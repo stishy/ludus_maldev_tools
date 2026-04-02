@@ -1,0 +1,27 @@
+---
+galaxy_info:
+  role_name: ludus_maldev_tools
+  namespace: stishy
+  author: stishy
+  description: >
+    Transforms a Windows VM into a malware development and analysis workstation.
+    Installs RE tools, compilers, IDEs, offensive repos, C2 clients, and disables
+    security controls. Designed for use with the Ludus cyber range platform.
+  license: MIT
+  min_ansible_version: "2.12"
+  platforms:
+    - name: Windows
+      versions:
+        - "2019"
+        - "2022"
+        - all
+  galaxy_tags:
+    - windows
+    - malware
+    - redteam
+    - development
+    - reversing
+    - offensive
+    - ludus
+
+dependencies: []
